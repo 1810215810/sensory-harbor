@@ -45,10 +45,11 @@
   }
 
   function home() {
-    return `<section class="hero"><div><div class="eyebrow">秦皇岛 · 海港区试点</div><h1>出门前，<span>先看看里面怎么样。</span></h1>
+    const publishedCount = api.official().length;
+    return `<section class="hero"><div><div class="eyebrow">秦皇岛 · 海港区试点</div><h1>出门前，<span>先看看环境。</span></h1>
       <p class="hero-copy">走进候诊区、菜市场或公园之前，先了解声音、人流、灯光和可以休息的地方。给需要提前做准备的家庭，多一点可用的信息。</p>
-      <div class="actions">${action('#places', '查看点位清单')}${action('#map?demo=1', '浏览地图示例', 'secondary')}</div>
-      <p class="statusline">${api.official().length ? `已有 ${api.official().length} 个核验点位公开` : '网站原型已开放 · 正式实测数据待接入'}</p></div>
+      <div class="actions">${action('#places', '查看点位清单')}${action(publishedCount ? '#map' : '#map?demo=1', publishedCount ? '浏览点位地图' : '浏览地图示例', 'secondary')}</div>
+      <p class="statusline">${publishedCount ? `已有 ${publishedCount} 个核验点位公开` : '网站原型已开放 · 正式实测数据待接入'}</p></div>
       <div class="panel hero-map" aria-label="示例地图画板">${mapImage(config.demoMap, config.demoPoints, { preview: true })}<div class="mapnote"><strong>感官地图 / 点位呈现</strong><span>${escape(config.demoMap.attribution)}</span></div></div></section>
       <section class="section"><div class="section-head"><h2>现场看这六项</h2><p>每份记录都有具体的位置和时间。</p></div>
       <div class="dimstrip">${config.dimensions.map(item => `<div class="dimension">${icon(item.icon)}<span>${escape(item.name)}</span></div>`).join('')}</div></section>
@@ -96,7 +97,14 @@
       detail.innerHTML = point ? pointCard(point, demo, true) : blank('请选择一个点位', '可以点地图标记，也可以用地图下方的点位按钮。');
       main.querySelectorAll('.pin').forEach(pin => pin.setAttribute('aria-pressed', String(pin.dataset.point === id)));
     };
-    main.querySelectorAll('[data-point]').forEach(button => button.addEventListener('click', () => select(button.dataset.point)));
+    main.querySelectorAll('[data-point]').forEach(button => button.addEventListener('click', () => {
+      select(button.dataset.point);
+      if (matchMedia('(max-width: 720px)').matches) {
+        detail.querySelector('article h2')?.setAttribute('tabindex', '-1');
+        detail.querySelector('article h2')?.focus({ preventScroll: true });
+        detail.scrollIntoView({ block: 'nearest' });
+      }
+    }));
     select(selected);
   }
 
