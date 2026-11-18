@@ -26,3 +26,7 @@
 ## 工具接入
 
 `Sensory.attachTool(pointId, toolId, payload)` 可接入后续工具，`Sensory.readTools(pointId)` 返回按类型分组的观察数组。当前工具：`noise`（短时采样 dBFS，与环境声压级不同）、`soundEvents`、`crowd`、`light`（人工自查）。需要上摄像头或校准设备时先定方法、授权和留存范围；不在浏览器里保留原始音频或视频。手机没有权限时，可以全程手工填表。
+
+## 地点搜索
+
+`data/haigang-places.js` 来自 [OpenStreetMap 区域快照](https://api.openstreetmap.org/api/0.6/map.json?bbox=119.49,39.88,119.65,39.975)（2026-11-18，海港区主城区及周边），由 OpenStreetMap 贡献者提供，按 [ODbL 1.0](https://www.openstreetmap.org/copyright) 分发。使用 `node scripts/build-place-index.cjs <快照.json>` 更新索引。原始索引坐标为 WGS84，显示时转换为 GCJ-02，供[高德单点嵌入](https://lbs.amap.com/api/uri-api/guide/embedded-map/single-location)居中和标记。线、面用近似中心，不代表具体入口。未命中索引时才调用高德关键词搜索，并提供百度、高德网页入口。地名索引与感官评测数据独立。
