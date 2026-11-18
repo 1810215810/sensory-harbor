@@ -113,7 +113,7 @@
       frame.title = keyword ? `高德地图：${keyword}搜索结果` : '高德地图：秦皇岛海港区';
       frame.src = url.href;
       if (!keyword) external.href = url.href;
-      status.textContent = keyword ? `已提交「${keyword}」。若地图没有显示结果，可用下方的高德或百度地图继续查询。` : '当前显示海港区周边。提交搜索时，关键词会发送给高德。';
+      status.textContent = keyword ? `已提交「${keyword}」。如果站内地图没出结果，可在高德或百度继续查。` : '当前显示海港区周边。提交搜索时，关键词会发送给高德。';
     }
     form.addEventListener('submit', event => {
       event.preventDefault();
@@ -134,8 +134,8 @@
     const region = !demo && config.study.placeSearch;
     const lookup = region ? `<section class="panel street-map" aria-label="查找真实地点">
       <form id="place-search" class="place-search" role="search" aria-label="地图地点搜索"><label class="label" for="place-keyword">地点名称、地址或类别</label><div class="search-row"><input name="keyword" id="place-keyword" type="search" maxlength="100" required placeholder="例如：秦皇岛站、人民公园、医院" autocomplete="off" aria-describedby="place-search-status"><button class="button" type="submit" aria-controls="street-frame">搜索地点</button></div></form>
-      <p class="help" id="place-search-status" role="status"></p><iframe id="street-frame" title="高德地图" referrerpolicy="strict-origin-when-cross-origin" allow="geolocation 'none'"></iframe>
-      <div class="mapnote"><span>地点搜索范围：${escape(region.city)} · 搜索结果不代表已做感官评测</span><div class="tags"><a id="street-external" target="_blank" rel="noopener noreferrer">打开高德地图 ↗</a><a id="street-baidu" target="_blank" rel="noopener noreferrer" hidden>在百度地图搜索 ↗</a></div></div></section>` : '';
+      <p class="help" id="place-search-status" role="status"></p><div class="mapnote"><span>搜索范围：${escape(region.city)} · 搜索结果不代表已评测</span><div class="tags"><a id="street-external" target="_blank" rel="noopener noreferrer">打开高德地图 ↗</a><a id="street-baidu" target="_blank" rel="noopener noreferrer" hidden>在百度地图搜索 ↗</a></div></div>
+      <iframe id="street-frame" title="高德地图" referrerpolicy="strict-origin-when-cross-origin" allow="geolocation 'none'"></iframe></section>` : '';
     const pointMap = map ? `<div class="section maplayout"><div class="panel"><h2 class="basemap-title">${demo ? '街区示意' : escape(map.label)}</h2>${mapImage(map, points, { selected })}<div class="mapnote"><span>${demo ? '深色：观察示例 · 空心：候选示例' : mapCredit(map)}</span>${demo ? `<span>${mapCredit(map)}</span>` : `<a href="${escape(map.src)}" target="_blank" rel="noopener">打开原图（新标签页）</a>`}</div>${points.length ? `<div class="maplist" aria-label="地图点位列表">${points.map((point, index) => `<button class="button secondary" type="button" data-point="${escape(point.id)}">${index + 1} · ${escape(point.name)}</button>`).join('')}</div>` : ''}</div><div id="map-detail" aria-live="polite"></div></div>` : '';
     main.innerHTML = heading('02 / 点位地图', demo ? '从地图看点位' : '海港区地图', demo ? '点一下标记，看看点位卡片怎么展示。' : '按名称、地址或类别查找秦皇岛的真实地点。地图默认打开海港区，可以拖动和缩放。') +
       (demo ? demoNotice : lookup) + `<div class="actions">${action(`#places${demoMode(demo)}`, '查看感官评测清单', 'secondary')}${action(demo ? '#map' : '#map?demo=1', demo ? '返回海港区地图' : '体验示例点位', 'ghost')}</div>` +
