@@ -11,7 +11,7 @@
 ## 后续接入标准、底图和真实点位
 
 1. **定标准：** `data/config.js` 中每个维度的 `criteria` 填入 1–5 的明确观察依据；`policy` 填已确认的版本、最低推荐分 `recommendedMin`、不公开上限 `rejectMax`、允许缺项的数量 `maxMissing` 和不可缺维度列表 `required`，然后将 `state` 改为 `approved`。这是短板评分接口：先排除命中低分的记录，其次查缺项；只有六项齐全且达推荐线才推荐。未批准或缺字段时，只导出待定级记录。若最终改为另一套聚合或采样方式，替换 `assets/core.js` 的 `classify()`，页面与发布脚本共用该函数。
-2. **换底图：** 当前离线底图是[天地图·河北发布的秦皇岛市地图（水系交通版）](https://hebei.tianditu.gov.cn/bzdt/)，审图号冀S（2025）011号。保留原图、图例、比例和审图号，未裁切；另可按需加载高德街道视图，不把它的标记当成感官评测点。替换时将有权公开使用且符合发布要求的原图放入 `data/`，在 `study.publicMap` 配置 `src`、`width`、`height`、`label`、`alt`、`attribution`、`source` 和可选的 `streetView`。点位坐标以原图左上角为原点的 `[横向百分比, 纵向百分比]` 计，换图须复核每个坐标。示例图仍与正式底图隔离。添加公开点位前还需要确认地图展示和标注的使用要求；`study.dataLicense` 仅是感官观察数据许可，和底图许可不是同一回事。
+2. **换底图：** 地图页默认显示高德交互地图，地点搜索走[官方嵌入搜索](https://lbs.amap.com/api/uri-api/guide/embedded-map/search-result)，`study.placeSearch` 配置中心经纬度、城市和初始缩放，无需密钥；搜索结果不属于感官评测记录。离线及评测分布用[天地图·河北发布的秦皇岛市地图（水系交通版）](https://hebei.tianditu.gov.cn/bzdt/)，审图号冀S（2025）011号，保留原图和图例。替换时将有权公开使用且符合发布要求的原图放入 `data/`，在 `study.publicMap` 配置 `src`、`width`、`height`、`label`、`alt`、`attribution` 和 `source`。点位坐标以原图左上角为原点的 `[横向百分比, 纵向百分比]` 计，换图须复核每个坐标。添加公开点位前须确认地图展示和标注的使用要求；`study.dataLicense` 仅是感官观察数据许可。
 3. **采集：** 评估表导出的 `kind: sensory-observation` JSON 含 `schemaVersion`、`pointId`、`name`、`type`、`scenario`、`location`、ISO 8601 `observedAt`、`durationMinutes`、`scores`、`evidence`、`toolReadings`、`level`、`policyVersion` 等。未测维度不写入 `scores`，不以 0 代替。同一编号可以记录多个工具观察窗；换一次独立观察前先导出再清空对应工具记录。内部文件应放在仓库外；不要把任何身份信息、原始录音、照片或未公开等级提交到公开仓库。
 4. **审核、生成：** 人工复核报告，对照规则版本，选出允许公开且可以追溯的一条记录。工具不会凭观测值自动给分。审核清单放在仓库外，JSON 格式如下，`observation` 相对该清单所在目录：
 

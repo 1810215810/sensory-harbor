@@ -55,7 +55,7 @@
       `<div class="panel hero-map" aria-label="示例地图画板">${mapImage(config.demoMap, config.demoPoints, { preview: true })}<div class="mapnote"><strong>感官地图 / 点位呈现</strong><span>${mapCredit(config.demoMap)}</span></div></div>`;
     return `<section class="hero"><div><div class="eyebrow">秦皇岛 · 海港区试点</div><h1>出门前，<span>先看看环境。</span></h1>
       <p class="hero-copy">走进候诊区、菜市场或公园之前，先了解声音、人流、灯光和可以休息的地方。给需要提前做准备的家庭，多一点可用的信息。</p>
-      <div class="actions">${action('#places', '查看点位清单')}${action(map ? '#map' : '#map?demo=1', map ? '查看海港区地图' : '浏览地图示例', 'secondary')}</div>
+      <div class="actions">${action('#places', '查看点位清单')}${action(map ? '#map' : '#map?demo=1', map ? '在地图上查地点' : '浏览地图示例', 'secondary')}</div>
       <p class="statusline">${publishedCount ? `已有 ${publishedCount} 个核验点位公开` : '网站原型已开放 · 正式实测数据待接入'}</p></div>
       ${heroMap}</section>
       <section class="section"><div class="section-head"><h2>现场看这六项</h2><p>每份记录都有具体的位置和时间。</p></div>
@@ -90,31 +90,62 @@
     });
   }
 
+  function mountPlaceSearch(region) {
+    const form = main.querySelector('#place-search');
+    const input = form.elements.keyword;
+    const frame = main.querySelector('#street-frame');
+    const external = main.querySelector('#street-external');
+    const baidu = main.querySelector('#street-baidu');
+    const status = main.querySelector('#place-search-status');
+    function show(keyword = '') {
+      const url = new URL(keyword ? 'https://www.amap.com/ssr/embed/search' : 'https://www.amap.com/ssr/embed/view');
+      Object.entries({ lng: region.lng, lat: region.lat, zoom: region.zoom, platform: 'pc', src: 'sensory-harbor' })
+        .forEach(([name, value]) => url.searchParams.set(name, value));
+      if (keyword) {
+        url.searchParams.set('keyword', keyword);
+        url.searchParams.set('city', region.city);
+        const amapParams = new URLSearchParams({ keyword, city: region.city, src: 'sensory-harbor', callnative: '0' });
+        const baiduParams = new URLSearchParams({ query: keyword, region: region.city, output: 'html', src: 'webapp.sensory.harbor' });
+        external.href = `https://uri.amap.com/search?${amapParams}`;
+        baidu.href = `https://api.map.baidu.com/place/search?${baiduParams}`;
+        baidu.hidden = false;
+      }
+      frame.title = keyword ? `高德地图：${keyword}搜索结果` : '高德地图：秦皇岛海港区';
+      frame.src = url.href;
+      if (!keyword) external.href = url.href;
+      status.textContent = keyword ? `已提交「${keyword}」。若地图没有显示结果，可用下方的高德或百度地图继续查询。` : '当前显示海港区周边。提交搜索时，关键词会发送给高德。';
+    }
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      const keyword = input.value.trim();
+      if (!keyword) {
+        status.textContent = '请输入地点名称、地址或类别。';
+        input.focus();
+        return;
+      }
+      show(keyword);
+    });
+    show();
+  }
+
   function mapPage(demo, selected) {
     const points = demo ? config.demoPoints : api.official();
     const map = demo ? config.demoMap : config.study.publicMap;
-    main.innerHTML = heading('02 / 点位地图', demo ? '从地图看点位' : '海港区地图', demo ? '点一下标记，看看点位卡片怎么展示。' : '先看海港区的位置和周边道路，实地观察通过审核后再标到地图上。') +
-      (demo ? demoNotice : '') + `<div class="actions map-actions">${!demo && map?.streetView ? '<button class="button" id="street-toggle" type="button" aria-controls="street-map" aria-expanded="false">加载在线街道地图</button>' : ''}${action(`#places${demoMode(demo)}`, '改用清单浏览', 'secondary')}${action(demo ? '#map' : '#map?demo=1', demo ? '返回海港区地图' : '体验示例点位', 'ghost')}</div>` +
-      (!map ? `<section class="section">${blank('正式地图待接入', '底图就绪后会在这里展示。')}</section>` :
-        `<div class="section maplayout"><div class="panel"><h2 class="basemap-title">${demo ? '街区示意' : escape(map.label)}</h2>${mapImage(map, points, { selected })}<div class="mapnote"><span>${demo ? '深色：观察示例 · 空心：候选示例' : mapCredit(map)}</span>${demo ? `<span>${mapCredit(map)}</span>` : `<a href="${escape(map.src)}" target="_blank" rel="noopener">打开原图（新标签页）</a>`}</div>${points.length ? `<div class="maplist" aria-label="地图点位列表">${points.map((point, index) => `<button class="button secondary" type="button" data-point="${escape(point.id)}">${index + 1} · ${escape(point.name)}</button>`).join('')}</div>` : ''}</div><div id="map-detail" aria-live="polite"></div></div>`);
-    if (!demo && map?.streetView) {
-      main.querySelector('.map-actions').insertAdjacentHTML('afterend', '<section class="section panel street-map" id="street-map" hidden></section>');
-      const toggle = main.querySelector('#street-toggle');
-      const street = main.querySelector('#street-map');
-      toggle.addEventListener('click', () => {
-        const open = street.hidden;
-        street.hidden = !open;
-        street.innerHTML = open ? `<h2 class="basemap-title">海港区主城区街道</h2><p class="help">由高德提供，可拖动和缩放。地图上的地名不是评测点位。<a href="${escape(map.streetView)}" target="_blank" rel="noopener noreferrer">在新标签页打开</a></p><iframe title="高德地图：秦皇岛海港区主城区" src="${escape(map.streetView)}" referrerpolicy="strict-origin-when-cross-origin" allow="geolocation 'none'"></iframe>` : '';
-        toggle.setAttribute('aria-expanded', String(open));
-        toggle.textContent = open ? '关闭在线街道地图' : '加载在线街道地图';
-        if (open) street.scrollIntoView({ block: 'nearest' });
-      });
-    }
+    const region = !demo && config.study.placeSearch;
+    const lookup = region ? `<section class="panel street-map" aria-label="查找真实地点">
+      <form id="place-search" class="place-search" role="search" aria-label="地图地点搜索"><label class="label" for="place-keyword">地点名称、地址或类别</label><div class="search-row"><input name="keyword" id="place-keyword" type="search" maxlength="100" required placeholder="例如：秦皇岛站、人民公园、医院" autocomplete="off" aria-describedby="place-search-status"><button class="button" type="submit" aria-controls="street-frame">搜索地点</button></div></form>
+      <p class="help" id="place-search-status" role="status"></p><iframe id="street-frame" title="高德地图" referrerpolicy="strict-origin-when-cross-origin" allow="geolocation 'none'"></iframe>
+      <div class="mapnote"><span>地点搜索范围：${escape(region.city)} · 搜索结果不代表已做感官评测</span><div class="tags"><a id="street-external" target="_blank" rel="noopener noreferrer">打开高德地图 ↗</a><a id="street-baidu" target="_blank" rel="noopener noreferrer" hidden>在百度地图搜索 ↗</a></div></div></section>` : '';
+    const pointMap = map ? `<div class="section maplayout"><div class="panel"><h2 class="basemap-title">${demo ? '街区示意' : escape(map.label)}</h2>${mapImage(map, points, { selected })}<div class="mapnote"><span>${demo ? '深色：观察示例 · 空心：候选示例' : mapCredit(map)}</span>${demo ? `<span>${mapCredit(map)}</span>` : `<a href="${escape(map.src)}" target="_blank" rel="noopener">打开原图（新标签页）</a>`}</div>${points.length ? `<div class="maplist" aria-label="地图点位列表">${points.map((point, index) => `<button class="button secondary" type="button" data-point="${escape(point.id)}">${index + 1} · ${escape(point.name)}</button>`).join('')}</div>` : ''}</div><div id="map-detail" aria-live="polite"></div></div>` : '';
+    main.innerHTML = heading('02 / 点位地图', demo ? '从地图看点位' : '海港区地图', demo ? '点一下标记，看看点位卡片怎么展示。' : '按名称、地址或类别查找秦皇岛的真实地点。地图默认打开海港区，可以拖动和缩放。') +
+      (demo ? demoNotice : lookup) + `<div class="actions">${action(`#places${demoMode(demo)}`, '查看感官评测清单', 'secondary')}${action(demo ? '#map' : '#map?demo=1', demo ? '返回海港区地图' : '体验示例点位', 'ghost')}</div>` +
+      (demo || points.length ? pointMap : `<p class="section muted">暂无公开感官评测点位。</p>${map ? `<details class="section panel"><summary>查看秦皇岛行政区总览图</summary>${pointMap}</details>` : ''}`);
+    if (region) mountPlaceSearch(region);
     const detail = document.querySelector('#map-detail');
     if (!detail) return;
     const select = id => {
       const point = points.find(item => item.id === id);
-      detail.innerHTML = point ? pointCard(point, demo, true) : points.length ? blank('请选择一个点位', '可以点地图标记，也可以用地图下方的点位按钮。') : blank('暂未发布实测点位', '当前展示真实地理底图。候诊区等示例点位只在演示地图里。', action('#map?demo=1', '体验示例点位', 'secondary'));
+      detail.innerHTML = point ? pointCard(point, demo, true) : points.length ? blank('请选择一个点位', '可以点地图标记，也可以用地图下方的点位按钮。') : '';
       main.querySelectorAll('.pin').forEach(pin => pin.setAttribute('aria-pressed', String(pin.dataset.point === id)));
     };
     main.querySelectorAll('[data-point]').forEach(button => button.addEventListener('click', () => {
