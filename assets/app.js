@@ -99,18 +99,23 @@
     const baidu = main.querySelector('#street-baidu');
     const status = main.querySelector('#place-search-status');
     const choices = main.querySelector('#place-choices');
+    const suggestions = main.querySelector('#place-suggestions');
+    const rows = globalThis.HaigangPlaces || [];
+    let matches = [];
+    let active = -1;
+    let composing = false;
     const selectPlace = place => {
       frame.title = `高德地图：${place.name}`;
       frame.src = mapSearch.placeUrl(place);
       status.textContent = `已定位：${place.name}${place.address ? ` · ${place.address}` : ''}`;
     };
-    function show(keyword) {
+    function show(keyword, selectedPlace) {
       const amapParams = new URLSearchParams({ keyword, city: region.city, src: 'sensory-harbor', callnative: '0' });
       const baiduParams = new URLSearchParams({ query: keyword, region: region.city, output: 'html', src: 'webapp.sensory.harbor' });
       external.href = `https://uri.amap.com/search?${amapParams}`;
       baidu.href = `https://api.map.baidu.com/place/search?${baiduParams}`;
       baidu.hidden = false;
-      const places = mapSearch.findPlaces(keyword, globalThis.HaigangPlaces || []);
+      const places = selectedPlace ? [selectedPlace] : mapSearch.findPlaces(keyword, rows);
       choices.replaceChildren();
       choices.hidden = places.length < 2;
       if (!places.length) {
@@ -135,14 +140,83 @@
         choices.append(button);
       });
     }
+
+    function closeSuggestions() {
+      suggestions.hidden = true;
+      input.setAttribute('aria-expanded', 'false');
+      input.removeAttribute('aria-activedescendant');
+      active = -1;
+    }
+
+    function choose(place) {
+      input.value = place.name;
+      closeSuggestions();
+      show(place.name, place);
+    }
+
+    function renderSuggestions() {
+      closeSuggestions();
+      const keyword = input.value.trim();
+      matches = [...keyword].length >= 2 ? mapSearch.findPlaces(keyword, rows).slice(0, 6) : [];
+      suggestions.replaceChildren();
+      if (!matches.length) return;
+      matches.forEach((place, index) => {
+        const option = document.createElement('li');
+        option.id = `place-suggestion-${index}`;
+        option.setAttribute('role', 'option');
+        option.setAttribute('aria-selected', 'false');
+        const name = document.createElement('strong');
+        name.textContent = place.name;
+        const detail = document.createElement('span');
+        detail.textContent = place.address || ({ stop: '公交站点', street: '道路', place: '本地地点' })[place.category];
+        option.append(name, detail);
+        option.addEventListener('pointerdown', event => event.preventDefault());
+        option.addEventListener('click', () => choose(place));
+        suggestions.append(option);
+      });
+      suggestions.hidden = false;
+      input.setAttribute('aria-expanded', 'true');
+    }
+
+    input.addEventListener('input', event => { if (!composing && !event.isComposing) renderSuggestions(); });
+    input.addEventListener('compositionstart', () => { composing = true; closeSuggestions(); });
+    input.addEventListener('compositionend', () => { composing = false; renderSuggestions(); });
+    input.addEventListener('focus', renderSuggestions);
+    input.addEventListener('blur', closeSuggestions);
+    input.addEventListener('keydown', event => {
+      if (composing || event.isComposing || event.keyCode === 229) return;
+      if (event.key === 'Enter' && !suggestions.hidden && active >= 0) {
+        event.preventDefault();
+        choose(matches[active]);
+        return;
+      }
+      if (event.key === 'Escape' && !suggestions.hidden) {
+        event.preventDefault();
+        closeSuggestions();
+        return;
+      }
+      if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+      if (suggestions.hidden) renderSuggestions();
+      if (suggestions.hidden) return;
+      event.preventDefault();
+      const direction = event.key === 'ArrowDown' ? 1 : -1;
+      active = active < 0 ? (direction === 1 ? 0 : matches.length - 1) : (active + direction + matches.length) % matches.length;
+      [...suggestions.children].forEach((option, index) => option.setAttribute('aria-selected', String(index === active)));
+      const highlighted = suggestions.children[active];
+      input.setAttribute('aria-activedescendant', highlighted.id);
+      highlighted.scrollIntoView({ block: 'nearest' });
+    });
+
     form.addEventListener('submit', event => {
       event.preventDefault();
+      if (composing) return;
       const keyword = input.value.trim();
       if (!keyword) {
         status.textContent = '请输入地点名称、地址或类别。';
         input.focus();
         return;
       }
+      closeSuggestions();
       show(keyword);
     });
     frame.src = external.href = mapSearch.viewUrl(region);
@@ -154,7 +228,7 @@
     const map = demo ? config.demoMap : config.study.publicMap;
     const region = !demo && config.study.placeSearch;
     const lookup = region ? `<section class="panel street-map" aria-label="查找真实地点">
-      <form id="place-search" class="place-search" role="search" aria-label="地图地点搜索"><label class="label" for="place-keyword">地点名称、地址或类别</label><div class="search-row"><input name="keyword" id="place-keyword" type="search" maxlength="100" required placeholder="例如：秦皇岛站、人民公园、医院" autocomplete="off" aria-describedby="place-search-status"><button class="button" type="submit" aria-controls="street-frame">搜索地点</button></div></form>
+      <form id="place-search" class="place-search" role="search" aria-label="地图地点搜索"><label class="label" for="place-keyword">地点名称、地址或类别</label><div class="search-row"><input name="keyword" id="place-keyword" type="search" maxlength="100" required placeholder="例如：秦皇岛站、人民公园、医院" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="place-suggestions" aria-describedby="place-search-status"><button class="button" type="submit" aria-controls="street-frame">搜索地点</button></div><ul id="place-suggestions" class="place-suggestions" role="listbox" aria-label="地点候选" hidden></ul></form>
       <p class="help" id="place-search-status" role="status"></p><div id="place-choices" class="maplist" role="group" aria-label="切换匹配地点" hidden></div><div class="mapnote"><span>本地地名：海港区主城区 · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap 贡献者</a></span><div class="tags"><a id="street-external" target="_blank" rel="noopener noreferrer">打开高德地图 ↗</a><a id="street-baidu" target="_blank" rel="noopener noreferrer" hidden>在百度地图搜索 ↗</a></div></div>
       <iframe id="street-frame" title="高德地图" referrerpolicy="strict-origin-when-cross-origin" allow="geolocation 'none'"></iframe></section>` : '';
     const pointMap = map ? `<div class="section maplayout"><div class="panel"><h2 class="basemap-title">${demo ? '街区示意' : escape(map.label)}</h2>${mapImage(map, points, { selected })}<div class="mapnote"><span>${demo ? '深色：观察示例 · 空心：候选示例' : mapCredit(map)}</span>${demo ? `<span>${mapCredit(map)}</span>` : `<a href="${escape(map.src)}" target="_blank" rel="noopener">打开原图（新标签页）</a>`}</div>${points.length ? `<div class="maplist" aria-label="地图点位列表">${points.map((point, index) => `<button class="button secondary" type="button" data-point="${escape(point.id)}">${index + 1} · ${escape(point.name)}</button>`).join('')}</div>` : ''}</div><div id="map-detail" aria-live="polite"></div></div>` : '';

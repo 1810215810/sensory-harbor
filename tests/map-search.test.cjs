@@ -23,3 +23,9 @@ test('未命中返回空结果；站点别名优先匹配火车站而不是公�
   assert.equal(map.findPlaces('秦皇岛站', rows)[0].category, 'place');
   assert.ok(map.findPlaces('医院', rows).length > 1);
 });
+
+test('未输完的地名保留城市前缀并给出相关地点', () => {
+  assert.deepEqual(map.findPlaces('秦皇岛市第一', rows).map(place => place.name).sort(),
+    ['秦皇岛市第一中学', '秦皇岛市第一医院'].sort());
+  assert.ok(map.findPlaces('秦皇岛市', rows).length > 0);
+});

@@ -1,18 +1,24 @@
 (() => {
-  const normalize = value => value.normalize('NFKC').toLowerCase().replace(/[\s()·-]/g, '').replace(/^秦皇岛市?海港区|^秦皇岛市|^海港区/, '');
+  const normalize = value => value.normalize('NFKC').toLowerCase().replace(/[\s()·-]/g, '');
+  const stripRegion = value => value.replace(/^秦皇岛市?海港区|^秦皇岛市|^海港区/, '');
 
   function findPlaces(query, rows) {
     const key = normalize(query);
     if (!key) return [];
-    return rows.map(([name, lng, lat, address, aliases, category]) => {
+    const localKey = stripRegion(key);
+    const matches = rows.map(([name, lng, lat, address, aliases, category]) => {
       const names = [name, ...aliases.split(';')].filter(Boolean).map(normalize);
       const namesAndAddress = [...names, normalize(address)];
-      const exact = namesAndAddress.includes(key);
-      const score = exact ? 3 : namesAndAddress.some(value => value.startsWith(key)) ? 2 : namesAndAddress.some(value => value.includes(key)) ? 1 : 0;
+      const score = namesAndAddress.reduce((best, value) => {
+        const local = stripRegion(value);
+        const match = value === key ? 6 : value.startsWith(key) ? 5 : value.includes(key) ? 4 :
+          localKey && local === localKey ? 3 : localKey && local.startsWith(localKey) ? 2 : localKey && local.includes(localKey) ? 1 : 0;
+        return Math.max(best, match);
+      }, 0);
       return { name, lng, lat, address, category, score };
     }).filter(place => place.score > 0)
-      .sort((first, second) => second.score - first.score || (first.category === 'stop') - (second.category === 'stop') || first.name.length - second.name.length)
-      .slice(0, 8);
+      .sort((first, second) => second.score - first.score || (first.category === 'stop') - (second.category === 'stop') || first.name.length - second.name.length);
+    return (matches[0]?.score >= 4 ? matches.filter(place => place.score >= 4) : matches).slice(0, 8);
   }
 
   function amapCoords(lng, lat) {
