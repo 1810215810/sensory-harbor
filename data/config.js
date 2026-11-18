@@ -1,6 +1,17 @@
 globalThis.SensoryConfig = {
   schemaVersion: 1,
-  study: { name: '海港区', publicMap: null, dataLicense: '' },
+  study: {
+    name: '海港区',
+    dataLicense: '',
+    publicMap: {
+      src: './data/qinhuangdao-standard-2025.jpg', width: 2480, height: 3070,
+      label: '秦皇岛市标准地图（水系交通版）',
+      alt: '秦皇岛市标准地图。海港区位于图中偏右、秦皇岛市标记东北侧，临近渤海。',
+      attribution: '天地图·河北 · 审图号：冀S（2025）011号',
+      source: 'https://hebei.tianditu.gov.cn/bzdt/',
+      streetView: 'https://www.amap.com/ssr/embed/view?lng=119.583&lat=39.943&zoom=13&platform=pc&src=sensory-harbor'
+    }
+  },
   demoMap: { src: './data/harbor-sketch.svg', attribution: '自绘示意图 · 非地理底图', label: '版式演示 · 非真实位置' },
   types: { path: '通行路径', daily: '日常必需', public: '公共空间', venue: '大型场馆' },
   dimensions: [

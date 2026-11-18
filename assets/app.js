@@ -30,8 +30,12 @@
       return preview ? `<span class="pin ${point.status}" style="${style}" aria-hidden="true">${index + 1}</span>` :
         `<button class="pin ${point.status}" type="button" data-point="${escape(point.id)}" style="${style}" aria-pressed="${point.id === selected}" aria-label="${escape(point.name)}，${point.status === 'candidate' ? '待核验' : '已核验'}">${index + 1}</button>`;
     }).join('');
-    return `<div class="mapframe"><img src="${escape(map.src)}" alt=""><span class="maptag">${escape(map.label)}</span>${pins}${preview ? '<div class="preview-card"><span class="badge">示例卡片</span><strong>候诊等候区</strong><p>入口较静，候诊区有间歇叫号。</p></div>' : ''}</div>`;
+    const staticImage = map.width && map.height;
+    const ratio = staticImage ? ` style="aspect-ratio:${Number(map.width)}/${Number(map.height)}"` : '';
+    return `<div class="mapframe${staticImage ? ' standard-map' : ''}"${ratio}><img src="${escape(map.src)}" alt="${escape(map.alt)}">${staticImage ? '' : `<span class="maptag">${escape(map.label)}</span>`}${pins}${preview ? '<div class="preview-card"><span class="badge">示例卡片</span><strong>候诊等候区</strong><p>入口较静，候诊区有间歇叫号。</p></div>' : ''}</div>`;
   }
+
+  const mapCredit = map => map.source ? `<a href="${escape(map.source)}" target="_blank" rel="noopener noreferrer">${escape(map.attribution)}</a>` : escape(map.attribution);
 
   function pointCard(point, demo, inMap = false) {
     const candidate = point.status === 'candidate';
@@ -46,11 +50,14 @@
 
   function home() {
     const publishedCount = api.official().length;
+    const map = config.study.publicMap;
+    const heroMap = map ? `<div class="panel hero-map hero-standard"><a class="hero-map-link" href="#map" aria-label="查看海港区地图">${mapImage(map, [])}</a><div class="mapnote"><strong>海港区在秦皇岛的位置</strong><span>${mapCredit(map)}</span></div></div>` :
+      `<div class="panel hero-map" aria-label="示例地图画板">${mapImage(config.demoMap, config.demoPoints, { preview: true })}<div class="mapnote"><strong>感官地图 / 点位呈现</strong><span>${mapCredit(config.demoMap)}</span></div></div>`;
     return `<section class="hero"><div><div class="eyebrow">秦皇岛 · 海港区试点</div><h1>出门前，<span>先看看环境。</span></h1>
       <p class="hero-copy">走进候诊区、菜市场或公园之前，先了解声音、人流、灯光和可以休息的地方。给需要提前做准备的家庭，多一点可用的信息。</p>
-      <div class="actions">${action('#places', '查看点位清单')}${action(publishedCount ? '#map' : '#map?demo=1', publishedCount ? '浏览点位地图' : '浏览地图示例', 'secondary')}</div>
+      <div class="actions">${action('#places', '查看点位清单')}${action(map ? '#map' : '#map?demo=1', map ? '查看海港区地图' : '浏览地图示例', 'secondary')}</div>
       <p class="statusline">${publishedCount ? `已有 ${publishedCount} 个核验点位公开` : '网站原型已开放 · 正式实测数据待接入'}</p></div>
-      <div class="panel hero-map" aria-label="示例地图画板">${mapImage(config.demoMap, config.demoPoints, { preview: true })}<div class="mapnote"><strong>感官地图 / 点位呈现</strong><span>${escape(config.demoMap.attribution)}</span></div></div></section>
+      ${heroMap}</section>
       <section class="section"><div class="section-head"><h2>现场看这六项</h2><p>每份记录都有具体的位置和时间。</p></div>
       <div class="dimstrip">${config.dimensions.map(item => `<div class="dimension">${icon(item.icon)}<span>${escape(item.name)}</span></div>`).join('')}</div></section>
       <section class="strip"><div><h3>要去现场做记录？</h3><p>打开评估表开始填写，或先到工具箱记录声音事件和人流。</p></div>${action('#assess', '打开评估表', 'ghost')}</section>`;
@@ -86,15 +93,28 @@
   function mapPage(demo, selected) {
     const points = demo ? config.demoPoints : api.official();
     const map = demo ? config.demoMap : config.study.publicMap;
-    main.innerHTML = heading('02 / 点位地图', '从地图看点位', '点一下标记，看看那里观察到了什么。地图用于看点位分布，不用于导航。') +
-      (demo ? demoNotice : publicNotice) + `<div class="actions">${action(demo ? '#map' : '#map?demo=1', demo ? '返回正式地图' : '打开示例地图', 'secondary')}${action(`#places${demoMode(demo)}`, '改用清单浏览', 'ghost')}</div>` +
-      (!map || !points.length ? `<section class="section">${blank('正式地图待接入', '底图和公开点位就绪后会在这里展示。')}</section>` :
-        `<div class="section maplayout"><div class="panel"><strong>${demo ? '湖海街区示意' : escape(config.study.name) + '点位分布'}</strong>${mapImage(map, points, { selected })}<div class="mapnote"><span>${demo ? '深色：观察示例 · 空心：候选示例' : '深色：已核验记录'}</span><span>${escape(map.attribution)}</span></div><div class="maplist" aria-label="地图点位列表">${points.map((point, index) => `<button class="button secondary" type="button" data-point="${escape(point.id)}">${index + 1} · ${escape(point.name)}</button>`).join('')}</div></div><div id="map-detail" aria-live="polite"></div></div>`);
+    main.innerHTML = heading('02 / 点位地图', demo ? '从地图看点位' : '海港区地图', demo ? '点一下标记，看看点位卡片怎么展示。' : '先看海港区的位置和周边道路，实地观察通过审核后再标到地图上。') +
+      (demo ? demoNotice : '') + `<div class="actions map-actions">${!demo && map?.streetView ? '<button class="button" id="street-toggle" type="button" aria-controls="street-map" aria-expanded="false">加载在线街道地图</button>' : ''}${action(`#places${demoMode(demo)}`, '改用清单浏览', 'secondary')}${action(demo ? '#map' : '#map?demo=1', demo ? '返回海港区地图' : '体验示例点位', 'ghost')}</div>` +
+      (!map ? `<section class="section">${blank('正式地图待接入', '底图就绪后会在这里展示。')}</section>` :
+        `<div class="section maplayout"><div class="panel"><h2 class="basemap-title">${demo ? '街区示意' : escape(map.label)}</h2>${mapImage(map, points, { selected })}<div class="mapnote"><span>${demo ? '深色：观察示例 · 空心：候选示例' : mapCredit(map)}</span>${demo ? `<span>${mapCredit(map)}</span>` : `<a href="${escape(map.src)}" target="_blank" rel="noopener">打开原图（新标签页）</a>`}</div>${points.length ? `<div class="maplist" aria-label="地图点位列表">${points.map((point, index) => `<button class="button secondary" type="button" data-point="${escape(point.id)}">${index + 1} · ${escape(point.name)}</button>`).join('')}</div>` : ''}</div><div id="map-detail" aria-live="polite"></div></div>`);
+    if (!demo && map?.streetView) {
+      main.querySelector('.map-actions').insertAdjacentHTML('afterend', '<section class="section panel street-map" id="street-map" hidden></section>');
+      const toggle = main.querySelector('#street-toggle');
+      const street = main.querySelector('#street-map');
+      toggle.addEventListener('click', () => {
+        const open = street.hidden;
+        street.hidden = !open;
+        street.innerHTML = open ? `<h2 class="basemap-title">海港区主城区街道</h2><p class="help">由高德提供，可拖动和缩放。地图上的地名不是评测点位。<a href="${escape(map.streetView)}" target="_blank" rel="noopener noreferrer">在新标签页打开</a></p><iframe title="高德地图：秦皇岛海港区主城区" src="${escape(map.streetView)}" referrerpolicy="strict-origin-when-cross-origin" allow="geolocation 'none'"></iframe>` : '';
+        toggle.setAttribute('aria-expanded', String(open));
+        toggle.textContent = open ? '关闭在线街道地图' : '加载在线街道地图';
+        if (open) street.scrollIntoView({ block: 'nearest' });
+      });
+    }
     const detail = document.querySelector('#map-detail');
     if (!detail) return;
     const select = id => {
       const point = points.find(item => item.id === id);
-      detail.innerHTML = point ? pointCard(point, demo, true) : blank('请选择一个点位', '可以点地图标记，也可以用地图下方的点位按钮。');
+      detail.innerHTML = point ? pointCard(point, demo, true) : points.length ? blank('请选择一个点位', '可以点地图标记，也可以用地图下方的点位按钮。') : blank('暂未发布实测点位', '当前展示真实地理底图。候诊区等示例点位只在演示地图里。', action('#map?demo=1', '体验示例点位', 'secondary'));
       main.querySelectorAll('.pin').forEach(pin => pin.setAttribute('aria-pressed', String(pin.dataset.point === id)));
     };
     main.querySelectorAll('[data-point]').forEach(button => button.addEventListener('click', () => {
